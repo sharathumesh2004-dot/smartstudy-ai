@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartStudy AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="container">
+    <h1 class="app-title">✨ SmartStudy AI 📚</h1>
+
+    <input type="text" id="title" placeholder="Enter Note Title">
+    <textarea id="content" placeholder="Write your notes..." rows="5"></textarea>
+
+    <button id="saveBtn" class="primary-btn" onclick="saveNote()">Save Note</button>
+
+    <hr>
+
+    <input type="text" id="questionInput" placeholder="Ask something...">
+    <button class="ai-btn" onclick="askAI()">Ask AI 🤖</button>
+
+    <div id="answerContainer">
+        <h3>Answer:</h3>
+        <div id="answerBox">Your answer will appear here...</div>
+    </div>
+
+    <hr>
+
+    <h3>Your Notes</h3>
+    <div id="notesList"></div>
+
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<script>
+
+let editingId = null;
+
+// SAVE / UPDATE NOTE
+function saveNote() {
+    const note = {
+        title: document.getElementById("title").value,
+        content: document.getElementById("content").value
+    };
+
+    if (editingId === null) {
+        fetch("http://localhost:8080/addNote", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(note)
+        })
+        .then(res => res.text())
+        .then(data => {
+            alert(data);
+            clearFields();
+            loadNotes();
+        });
+    } else {
+        fetch("http://localhost:8080/updateNote/" + editingId, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(note)
+        })
+        .then(res => res.text())
+        .then(data => {
+            alert(data);
+            editingId = null;
+            document.getElementById("saveBtn").innerText = "Save Note";
+            clearFields();
+            loadNotes();
+        });
+    }
+}
+
+// LOAD NOTES
+function loadNotes() {
+    fetch("http://localhost:8080/notes")
+    .then(res => res.json())
+    .then(data => displayNotes(data));
+}
+
+// AI ANSWER
+function askAI() {
+    const question = document.getElementById("questionInput").value;
+
+    fetch("http://localhost:8080/ai-answer?question=" + encodeURIComponent(question))
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById("answerBox").innerText = data;
+    });
+}
+
+// EDIT NOTE
+function editNote(id, title, content) {
+    document.getElementById("title").value = title;
+    document.getElementById("content").value = content;
+
+    editingId = id;
+    document.getElementById("saveBtn").innerText = "Update Note";
+}
+
+// DELETE NOTE (FINAL FIXED)
+function deleteNote(id) {
+    if (confirm("Delete this note permanently?")) {
+
+        fetch(`http://localhost:8080/deleteNote/${id}`, {
+            method: "DELETE"
+        })
+        .then(() => {
+            alert("Deleted successfully ✅");
+            loadNotes();
+        })
+        .catch(error => {
+            console.error(error);
+            alert("Delete failed ❌");
+        });
+    }
+}
+
+// DISPLAY NOTES (FINAL FIXED)
+function displayNotes(data) {
+    let html = "";
+
+    data.forEach(note => {
+        html += `
+            <div class="note">
+                <h4>${note.title ? note.title : "No Title"}</h4>
+                <p>${note.content ? note.content : "No Content"}</p>
+
+                <div class="note-actions">
+                    <button class="edit-btn" onclick="editNote(${note.id}, '${note.title || ""}', '${note.content || ""}')">Edit</button>
+                    <button class="delete-btn" onclick="deleteNote(${note.id})">Delete</button>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById("notesList").innerHTML = html;
+}
+
+// CLEAR INPUT
+function clearFields() {
+    document.getElementById("title").value = "";
+    document.getElementById("content").value = "";
+}
+
+// LOGOUT
+function logout() {
+    window.location.href = "login.html";
+}
+
+// LOAD ON START
+window.onload = loadNotes;
+
+</script>
+
+</body>
+</html>
